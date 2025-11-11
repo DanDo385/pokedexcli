@@ -6,6 +6,20 @@ import (
 	"os"
 	"strings"
 )
+type cliCommand struct {
+	name        string
+	description string
+	callback    func() error
+}
+
+func commandExit() error {
+	fmt.Println("Closing the Pokedex... Goodbye!")
+	os.Exit(0)
+	return nil // unreachable, but required
+}
+
+func commandHelp() error {
+	fmt.Println("\nAvailable commands:")
 
 func main() {
 	scanner := bufio.NewScanner(os.Stdin)
@@ -32,6 +46,5 @@ func main() {
 		// First word is the command
 		first := parts[0]
 
-		fmt.Printf("Your command was: %s\n", first)
 	}
 }
