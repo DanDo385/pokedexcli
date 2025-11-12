@@ -19,9 +19,10 @@ func commandExit() error {
 }
 
 func commandHelp() error {
-	fmt.Println("\nAvailable commands:")
+	fmt.Println("Welcome to the Pokedex!")
+	fmt.Println("Usage:")
 
-func main() {
+	
 	scanner := bufio.NewScanner(os.Stdin)
 
 	for {
