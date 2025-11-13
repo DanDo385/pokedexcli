@@ -10,10 +10,10 @@ import (
 )
 
 type cliCommand struct {
-    name        string
-    description string
-    callback    func(*config) error
-}
+    name        string // name of the command
+    description string // description of the command
+    callback    func(*config) error // function that takes a config and returns an error
+ }
 
 var commands = map[string]cliCommand{}
 
@@ -45,7 +45,9 @@ func init() {
 
 func main() {
     scanner := bufio.NewScanner(os.Stdin)
-    cfg := &config{}
+    cfg := &config{
+        client: pokeapi.NewClient(),
+    }
 
     for {
         fmt.Print("Pokedex > ")
@@ -82,7 +84,7 @@ func commandExit(cfg *config) error {
 
 func commandHelp(cfg *config) error {
     fmt.Println("Welcome to the Pokedex!")
-    fmt.Println("Usage:\n")
+    fmt.Println("Usage:")
     for _, cmd := range commands {
         fmt.Printf("%s: %s\n", cmd.name, cmd.description)
     }
@@ -90,8 +92,7 @@ func commandHelp(cfg *config) error {
 }
 
 func commandMap(cfg *config) error {
-    client := pokeapi.NewClient()
-    data, err := client.GetLocationAreas(cfg.nextURL)
+    data, err := cfg.client.GetLocationAreas(cfg.nextURL)
     if err != nil {
         return err
     }
@@ -112,8 +113,7 @@ func commandMapb(cfg *config) error {
         return nil
     }
 
-    client := pokeapi.NewClient()
-    data, err := client.GetLocationAreas(cfg.prevURL)
+    data, err := cfg.client.GetLocationAreas(cfg.prevURL)
     if err != nil {
         return err
     }
