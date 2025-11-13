@@ -1,73 +1,129 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
-	"os"
-	"strings"
+    "bufio"
+    "fmt"
+    "os"
+    "strings"
+
+    "github.com/DanDo385/pokedexcli/internal/pokeapi"
 )
-type cliCommand struct { // Define a struct for the CLI commands
-	name        string
-	description string
-	callback    func() error
-}
 
-func commandExit() error { // Command to exit the Pokedex
-	fmt.Println("Closing the Pokedex... Goodbye!")
-	os.Exit(0)
-	return nil // unreachable, but required
-}
-
-func commandHelp() error { // Command to display the help message
-	fmt.Println("Welcome to the Pokedex!")
-	fmt.Println("Usage:")
-
-	for _, cmd := range commands { // Loop through the commands and print the name and description
-		fmt.Printf("%s: %s\n", cmd.name, cmd.description) // Print the name and description of the command
-	}
-	return nil // Return nil to indicate success
+type cliCommand struct {
+    name        string
+    description string
+    callback    func(*config) error
 }
 
 var commands = map[string]cliCommand{}
 
 func init() {
-	commands["exit"] = cliCommand{
-		name:        "exit",
-		description: "Exit the Pokedex",
-		callback:    commandExit,
-	}
-	commands["help"] = cliCommand{
-		name:        "help",
-		description: "Displays a help message",
-		callback:    commandHelp,
-	}
+    commands["help"] = cliCommand{
+        name:        "help",
+        description: "Displays a help message",
+        callback:    commandHelp,
+    }
+
+    commands["exit"] = cliCommand{
+        name:        "exit",
+        description: "Exit the Pokedex",
+        callback:    commandExit,
+    }
+
+    commands["map"] = cliCommand{
+        name:        "map",
+        description: "List the next 20 location areas",
+        callback:    commandMap,
+    }
+
+    commands["mapb"] = cliCommand{
+        name:        "mapb",
+        description: "List the previous 20 location areas",
+        callback:    commandMapb,
+    }
 }
 
 func main() {
-	scanner := bufio.NewScanner(os.Stdin)
+    scanner := bufio.NewScanner(os.Stdin)
+    cfg := &config{}
 
-	for {
-		fmt.Print("Pokedex > ")
+    for {
+        fmt.Print("Pokedex > ")
+        if !scanner.Scan() {
+            break
+        }
 
-		if !scanner.Scan() {
-			break
-		}
+        input := strings.ToLower(strings.TrimSpace(scanner.Text()))
+        if input == "" {
+            continue
+        }
 
-		input := strings.ToLower(strings.TrimSpace(scanner.Text()))
-		if input == "" {
-			continue // If the input is empty, continue to the next iteration of the loop
-		}
+        parts := strings.Fields(input)
+        cmdName := parts[0]
 
-		parts := strings.Fields(input) // Split the input into parts
-		cmdName := parts[0] // Get the command name
+        if cmd, exists := commands[cmdName]; exists {
+            err := cmd.callback(cfg)
+            if err != nil {
+                fmt.Println("Error:", err)
+            }
+        } else {
+            fmt.Println("Unknown command")
+        }
+    }
+}
 
-		if cmd, exists := commands[cmdName]; exists {
-			err := cmd.callback()
-			if err != nil {
-				fmt.Println("Error:", err)
-			}
-		} else { // If the command does not exist, print an error message
-			fmt.Println("Unknown command")
-		}
-	}
+// ===== Commands =====
+
+func commandExit(cfg *config) error {
+    fmt.Println("Closing the Pokedex... Goodbye!")
+    os.Exit(0)
+    return nil
+}
+
+func commandHelp(cfg *config) error {
+    fmt.Println("Welcome to the Pokedex!")
+    fmt.Println("Usage:\n")
+    for _, cmd := range commands {
+        fmt.Printf("%s: %s\n", cmd.name, cmd.description)
+    }
+    return nil
+}
+
+func commandMap(cfg *config) error {
+    client := pokeapi.NewClient()
+    data, err := client.GetLocationAreas(cfg.nextURL)
+    if err != nil {
+        return err
+    }
+
+    for _, area := range data.Results {
+        fmt.Println(area.Name)
+    }
+
+    cfg.nextURL = data.Next
+    cfg.prevURL = data.Previous
+
+    return nil
+}
+
+func commandMapb(cfg *config) error {
+    if cfg.prevURL == nil {
+        fmt.Println("you're on the first page")
+        return nil
+    }
+
+    client := pokeapi.NewClient()
+    data, err := client.GetLocationAreas(cfg.prevURL)
+    if err != nil {
+        return err
+    }
+
+    for _, area := range data.Results {
+        fmt.Println(area.Name)
+    }
+
+    cfg.nextURL = data.Next
+    cfg.prevURL = data.Previous
+
+    return nil
 }
