@@ -15,32 +15,21 @@ type cliCommand struct {
     callback    func(*config) error // function that takes a config and returns an error
  }
 
-var commands = map[string]cliCommand{}
+var commands = map[string]cliCommand{} // map of command name to command
+
+func registerCommand(name, description string, callback func(*config) error) {
+    commands[name] = cliCommand{
+        name:        name,
+        description: description,
+        callback:    callback,
+    }
+}
 
 func init() {
-    commands["help"] = cliCommand{
-        name:        "help",
-        description: "Displays a help message",
-        callback:    commandHelp,
-    }
-
-    commands["exit"] = cliCommand{
-        name:        "exit",
-        description: "Exit the Pokedex",
-        callback:    commandExit,
-    }
-
-    commands["map"] = cliCommand{
-        name:        "map",
-        description: "List the next 20 location areas",
-        callback:    commandMap,
-    }
-
-    commands["mapb"] = cliCommand{
-        name:        "mapb",
-        description: "List the previous 20 location areas",
-        callback:    commandMapb,
-    }
+    registerCommand("help", "Displays a help message", commandHelp)
+    registerCommand("exit", "Exit the Pokedex", commandExit)
+    registerCommand("map", "List the next 20 location areas", commandMap)
+    registerCommand("mapb", "List the previous 20 location areas", commandMapb)
 }
 
 func main() {
@@ -91,8 +80,8 @@ func commandHelp(cfg *config) error {
     return nil
 }
 
-func commandMap(cfg *config) error {
-    data, err := cfg.client.GetLocationAreas(cfg.nextURL)
+func displayLocationAreas(cfg *config, url *string) error {
+    data, err := cfg.client.GetLocationAreas(url)
     if err != nil {
         return err
     }
@@ -107,23 +96,14 @@ func commandMap(cfg *config) error {
     return nil
 }
 
+func commandMap(cfg *config) error {
+    return displayLocationAreas(cfg, cfg.nextURL)
+}
+
 func commandMapb(cfg *config) error {
     if cfg.prevURL == nil {
         fmt.Println("you're on the first page")
         return nil
     }
-
-    data, err := cfg.client.GetLocationAreas(cfg.prevURL)
-    if err != nil {
-        return err
-    }
-
-    for _, area := range data.Results {
-        fmt.Println(area.Name)
-    }
-
-    cfg.nextURL = data.Next
-    cfg.prevURL = data.Previous
-
-    return nil
+    return displayLocationAreas(cfg, cfg.prevURL)
 }
