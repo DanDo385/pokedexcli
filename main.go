@@ -11,12 +11,12 @@ import (
 type cliCommand struct {
     name        string // name of the command
     description string // description of the command
-    callback    func(*config) error // function that takes a config and returns an error
+    callback    func(*config, ...string) error // function that takes a config and parameters and returns an error
  }
 
 var commands = map[string]cliCommand{} // map of command name to command
 
-func registerCommand(name, description string, callback func(*config) error) {
+func registerCommand(name, description string, callback func(*config, ...string) error) {
     commands[name] = cliCommand{
         name:        name,
         description: description,
@@ -29,6 +29,7 @@ func init() {
     registerCommand("exit", "Exit the Pokedex", commandExit)
     registerCommand("map", "List the next 20 location areas", commandMap)
     registerCommand("mapb", "List the previous 20 location areas", commandMapb)
+    registerCommand("explore", "Explore a location area to see Pokemon", commandExplore)
 }
 
 func main() {
@@ -50,9 +51,10 @@ func main() {
 
         parts := strings.Fields(input)
         cmdName := parts[0]
+        args := parts[1:]
 
         if cmd, exists := commands[cmdName]; exists {
-            err := cmd.callback(cfg)
+            err := cmd.callback(cfg, args...)
             if err != nil {
                 fmt.Println("Error:", err)
             }
@@ -64,13 +66,13 @@ func main() {
 
 // ===== Commands =====
 
-func commandExit(cfg *config) error {
+func commandExit(cfg *config, args ...string) error {
     fmt.Println("Closing the Pokedex... Goodbye!")
     os.Exit(0)
     return nil
 }
 
-func commandHelp(cfg *config) error {
+func commandHelp(cfg *config, args ...string) error {
     fmt.Println("Welcome to the Pokedex!")
     fmt.Println("Usage:")
     for _, cmd := range commands {
@@ -95,14 +97,35 @@ func displayLocationAreas(cfg *config, url *string) error {
     return nil
 }
 
-func commandMap(cfg *config) error {
+func commandMap(cfg *config, args ...string) error {
     return displayLocationAreas(cfg, cfg.nextURL)
 }
 
-func commandMapb(cfg *config) error {
+func commandMapb(cfg *config, args ...string) error {
     if cfg.prevURL == nil {
         fmt.Println("you're on the first page")
         return nil
     }
     return displayLocationAreas(cfg, cfg.prevURL)
+}
+
+func commandExplore(cfg *config, args ...string) error {
+    if len(args) == 0 {
+        return fmt.Errorf("explore command requires a location area name")
+    }
+    
+    areaName := args[0]
+    fmt.Printf("Exploring %s...\n", areaName)
+    
+    data, err := cfg.client.GetLocationArea(areaName)
+    if err != nil {
+        return err
+    }
+    
+    fmt.Println("Found Pokemon:")
+    for _, encounter := range data.PokemonEncounters {
+        fmt.Printf(" - %s\n", encounter.Pokemon.Name)
+    }
+    
+    return nil
 }
